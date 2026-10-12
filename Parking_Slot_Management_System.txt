@@ -1,0 +1,1025 @@
+; CSE341 Project
+; Project Title: Parking Slot Management System
+; Member 1: Register a New Vehicle, Update Vehicle Information
+; Member 2: Search Vehicle, Calculate Parking Fee
+; Member 3: Remove Vehicle, Parking Capacity Check
+; Required implementations: Array and Procedures
+
+.MODEL SMALL
+
+PRINT_MSG MACRO msg
+    mov ah, 9
+    lea dx, msg
+    int 21h
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+WELCOME_SCREEN MACRO
+    PRINT_MSG header_top
+    PRINT_MSG header
+    PRINT_MSG header_bot
+    PRINT_MSG choose
+    PRINT_MSG option1
+    PRINT_MSG option2
+    PRINT_MSG option3
+    PRINT_MSG option4
+    PRINT_MSG option5
+    PRINT_MSG option6
+    PRINT_MSG option7
+    PRINT_MSG divider
+ENDM
+
+; FEATURE 1 SUPPORT: assigns the next Vehicle ID.
+SET_ID MACRO
+    mov al, GLOBAL_INDEX
+    mov ah, 00h
+    mov si, ax
+    add al, 48
+    mov VEHICLE_ID[si], al
+
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    PRINT_MSG enter_id_complete
+ENDM
+
+; FEATURE 1 SUPPORT: stores the vehicle owner name in the array.
+TAKE_NAME_INPUT MACRO
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    mov ah, 9
+    lea dx, enter_name
+    int 21h
+
+    mov cx, 20
+    mov al, GLOBAL_INDEX
+    mov bl, 20
+    mul bl
+    mov si, ax
+    START_NAME:
+        mov ah, 1
+        int 21h
+        cmp al, terminator
+        je COMPLETE_NAME
+        mov VEHICLE_OWNER[si], al
+        add si, 1
+    LOOP START_NAME
+    COMPLETE_NAME:
+    LOOP COMPLETE_NAME
+    mov VEHICLE_OWNER[si], "$"
+    PRINT_MSG enter_name_complete
+ENDM
+
+; FEATURE 1 SUPPORT: stores the assigned parking slot in the array.
+TAKE_PARKING_SLOT_INPUT MACRO
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    mov ah, 9
+    lea dx, enter_parking_slot
+    int 21h
+
+    mov cx, 20
+    mov al, GLOBAL_INDEX
+    mov bl, 20
+    mul bl
+    mov si, ax
+    START_PARKING_SLOT:
+        mov ah, 1
+        int 21h
+        cmp al, terminator
+        je COMPLETE_PARKING_SLOT
+        mov PARKING_SLOT[si], al
+        add si, 1
+    LOOP START_PARKING_SLOT
+    COMPLETE_PARKING_SLOT:
+    LOOP COMPLETE_PARKING_SLOT
+    mov PARKING_SLOT[si], "$"
+    PRINT_MSG enter_parking_slot_complete
+ENDM
+
+; FEATURE 1 SUPPORT: sets the newly registered vehicle status to Parked.
+SET_STATUS MACRO
+    mov al, GLOBAL_INDEX
+    mov bh, 20
+    mul bh
+    mov si, ax
+
+    mov VEHICLE_STATUS[si], "P"
+    add si, 1
+    mov VEHICLE_STATUS[si], "a"
+    add si, 1
+    mov VEHICLE_STATUS[si], "r"
+    add si, 1
+    mov VEHICLE_STATUS[si], "k"
+    add si, 1
+    mov VEHICLE_STATUS[si], "e"
+    add si, 1
+    mov VEHICLE_STATUS[si], "d"
+    add si, 1
+    mov VEHICLE_STATUS[si], "$"
+
+    PRINT_MSG enter_status_complete_parked
+ENDM
+
+; FEATURE 2 SUPPORT: updates the owner name for an existing vehicle.
+UPDATE_NAME MACRO ID
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    mov ah, 9
+    lea dx, enter_name_update_msg
+    int 21h
+
+    mov cx, 20
+    mov al, ID
+    mov bl, 20
+    mul bl
+    mov si, ax
+    START_NAME_UPDATE:
+        mov ah, 1
+        int 21h
+        cmp al, terminator
+        je COMPLETE_NAME_UPDATE
+        mov VEHICLE_OWNER[si], al
+        add si, 1
+    LOOP START_NAME_UPDATE
+    COMPLETE_NAME_UPDATE:
+    LOOP COMPLETE_NAME_UPDATE
+    mov VEHICLE_OWNER[si], "$"
+    PRINT_MSG enter_name_complete
+ENDM
+
+; FEATURE 2 SUPPORT: updates the parking slot for an existing vehicle.
+UPDATE_PARKING_SLOT MACRO ID
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    mov ah, 9
+    lea dx, enter_parking_slot_update_msg
+    int 21h
+
+    mov cx, 20
+    mov al, ID
+    mov bl, 20
+    mul bl
+    mov si, ax
+    START_PARKING_SLOT_UPDATE:
+        mov ah, 1
+        int 21h
+        cmp al, terminator
+        je COMPLETE_PARKING_SLOT_UPDATE
+        mov PARKING_SLOT[si], al
+        add si, 1
+    LOOP START_PARKING_SLOT_UPDATE
+    COMPLETE_PARKING_SLOT_UPDATE:
+    LOOP COMPLETE_PARKING_SLOT_UPDATE
+    mov PARKING_SLOT[si], "$"
+    PRINT_MSG enter_parking_slot_complete
+ENDM
+
+; FEATURE 2 SUPPORT: changes the vehicle status.
+UPDATE_STATUS MACRO ID, TYPE
+    cmp TYPE, 1
+    je update_status_to_pro
+    cmp TYPE, 2
+    je update_status_to_del
+    jmp status_end
+
+    update_status_to_pro:
+        mov al, ID
+        mov bh, 20
+        mul bh
+        mov si, ax
+
+        mov VEHICLE_STATUS[si], "P"
+        add si, 1
+        mov VEHICLE_STATUS[si], "a"
+        add si, 1
+        mov VEHICLE_STATUS[si], "r"
+        add si, 1
+        mov VEHICLE_STATUS[si], "k"
+        add si, 1
+        mov VEHICLE_STATUS[si], "e"
+        add si, 1
+        mov VEHICLE_STATUS[si], "d"
+        add si, 1
+        mov VEHICLE_STATUS[si], "$"
+        PRINT_MSG enter_status_complete_parked
+        jmp status_end
+
+    update_status_to_del:
+        mov al, ID
+        mov bh, 20
+        mul bh
+        mov si, ax
+
+        mov VEHICLE_STATUS[si], "A"
+        add si, 1
+        mov VEHICLE_STATUS[si], "v"
+        add si, 1
+        mov VEHICLE_STATUS[si], "a"
+        add si, 1
+        mov VEHICLE_STATUS[si], "i"
+        add si, 1
+        mov VEHICLE_STATUS[si], "l"
+        add si, 1
+        mov VEHICLE_STATUS[si], "a"
+        add si, 1
+        mov VEHICLE_STATUS[si], "b"
+        add si, 1
+        mov VEHICLE_STATUS[si], "l"
+        add si, 1
+        mov VEHICLE_STATUS[si], "e"
+        add si, 1
+        mov VEHICLE_STATUS[si], "$"
+        PRINT_MSG enter_status_complete_available
+        jmp status_end
+
+    status_end:
+ENDM
+
+; FEATURE 3 SUPPORT: displays the searched vehicle ID.
+DISPLAY_VEHICLE_DETAILS_ID MACRO MULTIPLIER
+    mov al, MULTIPLIER
+    mov ah, 00h
+    mov si, ax
+    mov dl, VEHICLE_ID[si]
+    mov ah, 2
+    int 21h
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+; SUPPORTS vehicle-detail display/search output.
+DISPLAY_VEHICLE_DETAILS_NAME MACRO MULTIPLIER
+    mov al, MULTIPLIER
+    mov bh, 20
+    mul bh
+    mov si, ax
+    DETAILS_START_NAME:
+    mov dl, VEHICLE_OWNER[si]
+    cmp dl, "$"
+    je DETAILS_END_NAME
+    mov ah, 2
+    int 21h
+    add si, 1
+    jmp DETAILS_START_NAME
+    DETAILS_END_NAME:
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+; SUPPORTS vehicle-detail display/search output.
+DISPLAY_VEHICLE_DETAILS_PARKING_SLOT MACRO MULTIPLIER
+    mov al, MULTIPLIER
+    mov bh, 20
+    mul bh
+    mov si, ax
+    DETAILS_START_PARKING_SLOT:
+    mov dl, PARKING_SLOT[si]
+    cmp dl, "$"
+    je DETAILS_END_PARKING_SLOT
+    mov ah, 2
+    int 21h
+    add si, 1
+    jmp DETAILS_START_PARKING_SLOT
+    DETAILS_END_PARKING_SLOT:
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+; SUPPORTS vehicle-detail display/search output.
+DISPLAY_VEHICLE_DETAILS_STATUS MACRO MULTIPLIER
+    mov al, MULTIPLIER
+    mov bh, 20
+    mul bh
+    mov si, ax
+    DETAILS_START_STATUS:
+    mov dl, VEHICLE_STATUS[si]
+    cmp dl, "$"
+    je DETAILS_END_STATUS
+    mov ah, 2
+    int 21h
+    add si, 1
+    jmp DETAILS_START_STATUS
+    DETAILS_END_STATUS:
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+; FEATURE 3 SUPPORT: displays the owner name of the searched vehicle.
+DISPLAY_VEHICLE_DETAILS_NAME_SEARCH MACRO MULTIPLIER
+    mov al, MULTIPLIER
+    mov bh, 20
+    mul bh
+    mov si, ax
+    DETAILS_START_NAME_SEARCH:
+    mov dl, VEHICLE_OWNER[si]
+    cmp dl, "$"
+    je DETAILS_END_NAME_SEARCH
+    mov ah, 2
+    int 21h
+    add si, 1
+    jmp DETAILS_START_NAME_SEARCH
+    DETAILS_END_NAME_SEARCH:
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+; FEATURE 3 SUPPORT: displays the parking slot of the searched vehicle.
+DISPLAY_VEHICLE_DETAILS_PARKING_SLOT_SEARCH MACRO MULTIPLIER
+    mov al, MULTIPLIER
+    mov bh, 20
+    mul bh
+    mov si, ax
+    DETAILS_START_PARKING_SLOT_SEARCH:
+    mov dl, PARKING_SLOT[si]
+    cmp dl, "$"
+    je DETAILS_END_PARKING_SLOT_SEARCH
+    mov ah, 2
+    int 21h
+    add si, 1
+    jmp DETAILS_START_PARKING_SLOT_SEARCH
+    DETAILS_END_PARKING_SLOT_SEARCH:
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+; FEATURE 3 SUPPORT: displays the status of the searched vehicle.
+DISPLAY_VEHICLE_DETAILS_STATUS_SEARCH MACRO MULTIPLIER
+    mov al, MULTIPLIER
+    mov bh, 20
+    mul bh
+    mov si, ax
+    DETAILS_START_STATUS_SEARCH:
+    mov dl, VEHICLE_STATUS[si]
+    cmp dl, "$"
+    je DETAILS_END_STATUS_SEARCH
+    mov ah, 2
+    int 21h
+    add si, 1
+    jmp DETAILS_START_STATUS_SEARCH
+    DETAILS_END_STATUS_SEARCH:
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+ENDM
+
+
+.STACK 100H
+
+.DATA
+
+; ============================================================
+; SHARED DATA / ARRAY IMPLEMENTATION
+; Vehicle records are stored in parallel arrays.
+; ============================================================
+
+VEHICLE_ID       db 10 dup(?)
+VEHICLE_OWNER     db 200 dup(?)
+PARKING_SLOT db 200 dup(?)
+VEHICLE_STATUS   db 200 dup(?)
+
+GLOBAL_INDEX       db 0
+GLOBAL_MULTIPLIER  db 0
+GLOBAL_UPDATE_ID   db 0
+
+GLOBAL_DELETE_ID   db 0
+DEL_SHIFT_COUNT    db 0
+DEL_CUR_SLOT       db 0
+
+terminator db "\$"
+
+header_top  db "============================================$"
+header      db "   Welcome to Parking Slot Management System        $"
+header_bot  db "============================================$"
+divider     db "--------------------------------------------$"
+choose      db " Choose an option and press the number key: $"
+option1     db "  1. Register a New Vehicle                       $"
+option2     db "  2. Update Vehicle Information              $"
+option3     db "  3. Search Vehicle                          $"
+option4     db "  4. Calculate Parking Fee                    $"
+option5     db "  5. Remove Vehicle                          $"
+option6     db "  6. Run Parking Capacity Check             $"
+option7     db "  0. Exit System                            $"
+command     db 9h
+
+enter_id_complete              db "  [OK] Vehicle ID assigned successfully.     $"
+enter_name                     db "  Enter Owner Name (max 20 chars, Use \ to finish): $"
+enter_name_complete            db "  [OK] Owner name saved successfully.             $"
+enter_parking_slot                 db "  Enter Parking Slot (max 20 chars):            $"
+enter_parking_slot_complete        db "  [OK] Parking Slot saved successfully.         $"
+enter_status_complete_parked  db "  [OK] Status set to: Parked               $"
+enter_status_complete_available db "  [OK] Status set to: Available             $"
+
+retuen_main_menu    db "  >> Returning to main menu...              $"
+update_vehicle_info_instruction  db "  Enter the ID of the vehicle to update (0-9): $"
+update_options                  db "  What would you like to update?            $"
+update_name_option              db "  1. Update Owner Name                            $"
+update_parking_slot_option          db "  2. Update Parking Slot                        $"
+update_status_option            db "  3. Update Status                          $"
+enter_name_update_msg           db "  Enter new Owner Name (max 20 chars):            $"
+enter_parking_slot_update_msg       db "  Enter new Parking Slot (max 20 chars):        $"
+CHOSE_STATUS_UPDATE_OPTIONS     db "  Choose new status:                        $"
+CHOSE_STATUS_UPDATE_OPTIONS_1   db "  1. Parked                              $"
+CHOSE_STATUS_UPDATE_OPTIONS_2   db "  2. Available                              $"
+
+invalid_update_id_msg   db "  [ERROR] Invalid Vehicle ID. No vehicle found.$"
+
+SEARCH_ID           db 0
+search_prompt_msg   db "  Enter Vehicle ID to Search (0-9):          $"
+search_header_msg   db "------------ Vehicle Details ----------------$"
+search_id_label     db "  ID       : $"
+search_name_label   db "  Owner Name     : $"
+search_loc_label    db "  Parking Slot : $"
+search_stat_label   db "  Status   : $"
+invalid_id_msg      db "  [ERROR] Vehicle not found. Invalid ID.     $"
+
+fee_vehicle_prompt  db "  Enter Vehicle ID for Fee Calculation (0-9): $"
+fee_hours_prompt    db "  Enter Parking Duration (1-9 hours):         $"
+fee_header_msg      db "---------- Parking Fee Calculation ----------$"
+fee_rate_msg        db "  Parking rate per hour : 10                  $"
+fee_total_msg       db "  Total parking fee      : $"
+fee_complete_msg     db "  [OK] Parking fee calculated successfully. $"
+fee_invalid_duration_msg    db "  [ERROR] Invalid duration. Please use 1-9. $"
+fee_currency_msg     db " Taka$"
+PARKING_RATE        db 10
+FEE_VEHICLE_ID       db 0
+PARKING_HOURS        db 0
+
+MAX_CAPACITY        db 10
+cap_header_msg      db "---------- Parking Capacity Check ----------$"
+cap_current_msg     db "  Vehicles currently parked : $"
+cap_max_msg         db "  Maximum parking capacity         : 10             $"
+cap_ok_msg          db "  [OK] Parking OK. Space is available.      $"
+cap_full_msg        db "  [FULL] WARNING: Parking is FULL!          $"
+cap_ten_msg        db "10$"
+add_blocked_msg     db "  [ERROR] Parking FULL. Cannot add vehicle.  $"
+
+
+no_vehicle_msg       db "  [INFO] No vehicles currently parked.           $"
+delete_prompt_msg   db "  Enter the ID of the vehicle to remove (0-9): $"
+delete_ok_msg       db "  [OK] Vehicle removed and list compacted.   $"
+invalid_delete_msg  db "  [ERROR] Invalid ID. No vehicle deleted.    $"
+
+
+.CODE
+MAIN PROC
+
+MOV AX, @DATA
+MOV DS, AX
+
+; MAIN MENU DISPATCH: options 1-6 jump to the six project features.
+; The menu is printed every time control returns to MAIN_MENU so that
+; the user can always see the available options.
+MAIN_MENU:
+    ; Re-display the main menu after every feature returns here.
+    WELCOME_SCREEN
+
+    mov ah, 1
+    int 21h
+    sub al, 30h
+    mov command, al
+    cmp command, 0h
+    je END
+    cmp command, 1
+    je JUMP_ADD_VEHICLE
+    cmp command, 2
+    je JUMP_UPDATE_VEHICLE_INFO
+    cmp command, 3
+    je JUMP_SEARCH_VEHICLE
+    cmp command, 4
+    je JUMP_CALCULATE_FEE
+    cmp command, 5
+    je JUMP_DELETE_VEHICLE
+    cmp command, 6
+    je JUMP_CAPACITY_CHECK
+    jmp MAIN_MENU
+
+; ============================================================
+; FEATURE 1: REGISTER A NEW VEHICLE
+; MENU HANDLER
+; ============================================================
+JUMP_ADD_VEHICLE:
+    mov al, GLOBAL_INDEX
+    cmp al, MAX_CAPACITY
+    jl  DO_ADD_VEHICLE
+    PRINT_MSG add_blocked_msg
+    jmp AFTER_ADD_VEHICLE
+DO_ADD_VEHICLE:
+    CALL ADD_VEHICLE
+    mov command, 9h
+    PRINT_MSG retuen_main_menu
+    add GLOBAL_INDEX, 1
+AFTER_ADD_VEHICLE:
+    jmp MAIN_MENU
+
+; ============================================================
+; FEATURE 2: UPDATE VEHICLE INFORMATION
+; MENU HANDLER
+; ============================================================
+JUMP_UPDATE_VEHICLE_INFO:
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    PRINT_MSG update_vehicle_info_instruction
+
+    mov ah, 1
+    int 21h
+    sub al, 30h
+    mov GLOBAL_UPDATE_ID, al
+
+    mov al, GLOBAL_UPDATE_ID
+    cmp al, GLOBAL_INDEX
+    jge UPDATE_INVALID_ID
+
+    CALL UPDATE_VEHICLE_INFO
+    jmp MAIN_MENU
+
+UPDATE_INVALID_ID:
+    PRINT_MSG invalid_update_id_msg
+    PRINT_MSG retuen_main_menu
+    jmp MAIN_MENU
+
+; ============================================================
+; FEATURE 4: CALCULATE PARKING FEE
+; MENU HANDLER
+; ============================================================
+JUMP_CALCULATE_FEE:
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    PRINT_MSG fee_header_msg
+    PRINT_MSG fee_rate_msg
+    PRINT_MSG fee_vehicle_prompt
+
+    mov ah, 1
+    int 21h
+    sub al, 30h
+    mov FEE_VEHICLE_ID, al
+
+    mov al, FEE_VEHICLE_ID
+    cmp al, GLOBAL_INDEX
+    jge FEE_INVALID_ID
+
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    PRINT_MSG fee_hours_prompt
+
+    mov ah, 1
+    int 21h
+    sub al, 30h
+    cmp al, 1
+    jl FEE_INVALID_DURATION
+    cmp al, 9
+    jg FEE_INVALID_DURATION
+    mov PARKING_HOURS, al
+
+    CALL CALCULATE_PARKING_FEE
+    jmp MAIN_MENU
+
+FEE_INVALID_ID:
+    PRINT_MSG invalid_id_msg
+    PRINT_MSG retuen_main_menu
+    jmp MAIN_MENU
+
+FEE_INVALID_DURATION:
+    PRINT_MSG fee_invalid_duration_msg
+    PRINT_MSG retuen_main_menu
+    jmp MAIN_MENU
+
+; ============================================================
+; FEATURE 3: SEARCH VEHICLE
+; MENU HANDLER
+; ============================================================
+JUMP_SEARCH_VEHICLE:
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    PRINT_MSG search_prompt_msg
+
+    mov ah, 1
+    int 21h
+    sub al, 30h
+    mov SEARCH_ID, al
+
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+
+    mov al, SEARCH_ID
+    cmp al, GLOBAL_INDEX
+    jge SEARCH_NOT_FOUND
+
+    PRINT_MSG search_header_msg
+
+    mov ah, 9
+    lea dx, search_id_label
+    int 21h
+    DISPLAY_VEHICLE_DETAILS_ID SEARCH_ID
+
+    mov ah, 9
+    lea dx, search_name_label
+    int 21h
+    DISPLAY_VEHICLE_DETAILS_NAME_SEARCH SEARCH_ID
+
+    mov ah, 9
+    lea dx, search_loc_label
+    int 21h
+    DISPLAY_VEHICLE_DETAILS_PARKING_SLOT_SEARCH SEARCH_ID
+
+    mov ah, 9
+    lea dx, search_stat_label
+    int 21h
+    DISPLAY_VEHICLE_DETAILS_STATUS_SEARCH SEARCH_ID
+
+    jmp SEARCH_DONE
+
+SEARCH_NOT_FOUND:
+    PRINT_MSG invalid_id_msg
+
+SEARCH_DONE:
+    mov command, 9h
+    PRINT_MSG divider
+    PRINT_MSG retuen_main_menu
+    jmp MAIN_MENU
+
+; ============================================================
+; FEATURE 5: REMOVE VEHICLE
+; MENU HANDLER
+; ============================================================
+JUMP_DELETE_VEHICLE:
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+    PRINT_MSG delete_prompt_msg
+
+    mov ah, 1
+    int 21h
+    sub al, 30h
+    mov GLOBAL_DELETE_ID, al
+
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+
+    ; --- invalid ID check ---
+    mov al, GLOBAL_DELETE_ID
+    cmp al, GLOBAL_INDEX
+    jge DELETE_INVALID
+
+    CALL DELETE_VEHICLE
+    jmp MAIN_MENU
+
+DELETE_INVALID:
+    PRINT_MSG invalid_delete_msg
+    PRINT_MSG retuen_main_menu
+    jmp MAIN_MENU
+
+; ============================================================
+; FEATURE 6: PARKING CAPACITY CHECK
+; MENU HANDLER
+; ============================================================
+JUMP_CAPACITY_CHECK:
+    CALL STORAGE_CAPACITY_CHECK
+    mov command, 9h
+    PRINT_MSG retuen_main_menu
+    jmp MAIN_MENU
+
+END:
+MOV AX, 4C00H
+INT 21H
+
+MAIN ENDP
+
+; ============================================================
+; FEATURE 1: REGISTER A NEW VEHICLE
+; MAIN PROCEDURE
+; ============================================================
+ADD_VEHICLE PROC
+    PRINT_MSG divider
+    SET_ID
+    TAKE_NAME_INPUT
+    TAKE_PARKING_SLOT_INPUT
+    SET_STATUS
+    PRINT_MSG divider
+    RET
+ADD_VEHICLE ENDP
+
+; ============================================================
+; FEATURE 2: UPDATE VEHICLE INFORMATION
+; MAIN PROCEDURE
+; ============================================================
+UPDATE_VEHICLE_INFO PROC
+    PRINT_MSG divider
+    PRINT_MSG update_options
+    PRINT_MSG update_name_option
+    PRINT_MSG update_parking_slot_option
+    PRINT_MSG update_status_option
+
+    RETRY:
+
+    mov ah, 1
+    int 21h
+    sub al, 30h
+
+    cmp al, 1
+    je JUMP_UPDATE_NAME
+
+    cmp al, 2
+    je JUMP_UPDATE_PARKING_SLOT
+
+    cmp al, 3
+    je JUMP_UPDATE_STATUS
+
+    jmp END_UPDATE_VEHICLE_INFO
+
+    JUMP_UPDATE_NAME:
+    UPDATE_NAME GLOBAL_UPDATE_ID
+    jmp END_UPDATE_VEHICLE_INFO
+
+    JUMP_UPDATE_PARKING_SLOT:
+    UPDATE_PARKING_SLOT GLOBAL_UPDATE_ID
+    jmp END_UPDATE_VEHICLE_INFO
+
+    JUMP_UPDATE_STATUS:
+    PRINT_MSG CHOSE_STATUS_UPDATE_OPTIONS
+    PRINT_MSG CHOSE_STATUS_UPDATE_OPTIONS_1
+    PRINT_MSG CHOSE_STATUS_UPDATE_OPTIONS_2
+    mov ah, 1
+    int 21h
+    sub al, 30h
+
+    UPDATE_STATUS GLOBAL_UPDATE_ID, al
+    jmp END_UPDATE_VEHICLE_INFO
+
+    END_UPDATE_VEHICLE_INFO:
+    PRINT_MSG divider
+    PRINT_MSG retuen_main_menu
+    RET
+UPDATE_VEHICLE_INFO ENDP
+
+; ============================================================
+; FEATURE 4: CALCULATE PARKING FEE
+; MAIN PROCEDURE
+; Calculates parking rate x parking duration.
+; ============================================================
+CALCULATE_PARKING_FEE PROC
+    PRINT_MSG fee_total_msg
+
+    mov al, PARKING_RATE
+    mov bl, PARKING_HOURS
+    mul bl
+
+    mov bx, 10
+    div bl
+
+    mov bh, ah
+    add al, 30h
+    mov dl, al
+    mov ah, 2
+    int 21h
+
+    mov al, bh
+    add al, 30h
+    mov dl, al
+    mov ah, 2
+    int 21h
+
+    PRINT_MSG fee_currency_msg
+    PRINT_MSG fee_complete_msg
+    PRINT_MSG divider
+    PRINT_MSG retuen_main_menu
+    RET
+CALCULATE_PARKING_FEE ENDP
+
+; ============================================================
+; FEATURE 5: REMOVE VEHICLE
+; MAIN PROCEDURE
+; Shifts later records left after removal.
+; ============================================================
+DELETE_VEHICLE PROC
+
+    
+    mov al, GLOBAL_INDEX
+    sub al, GLOBAL_DELETE_ID
+    sub al, 1
+    mov DEL_SHIFT_COUNT, al      
+
+    cmp al, 0
+    je DELETE_SKIP_SHIFT         
+
+ 
+    mov al, GLOBAL_DELETE_ID
+    mov DEL_CUR_SLOT, al
+
+DEL_SHIFT_LOOP:
+
+    
+    mov al, DEL_CUR_SLOT
+    inc al                       
+    mov ah, 00h
+    mov si, ax
+    mov dl, VEHICLE_ID[si]        
+
+    mov al, DEL_CUR_SLOT
+    mov ah, 00h
+    mov si, ax
+    mov VEHICLE_ID[si], dl        
+
+    
+ 
+    mov al, DEL_CUR_SLOT
+    mov ah, 00h
+    mov si, 20
+    mul si                       
+    mov di, ax                   
+
+    mov al, DEL_CUR_SLOT
+    inc al                       
+    mov ah, 00h
+    mov si, 20
+    mul si                       
+    mov si, ax                   
+
+    mov bx, 20                   
+    DEL_COPY_NAME:
+        mov al, VEHICLE_OWNER[si]
+        mov VEHICLE_OWNER[di], al
+        inc si
+        inc di
+        dec bx
+        jnz DEL_COPY_NAME
+
+ 
+    mov al, DEL_CUR_SLOT
+    mov ah, 00h
+    mov si, 20
+    mul si
+    mov di, ax
+
+    mov al, DEL_CUR_SLOT
+    inc al
+    mov ah, 00h
+    mov si, 20
+    mul si
+    mov si, ax
+
+    mov bx, 20
+    DEL_COPY_LOC:
+        mov al, PARKING_SLOT[si]
+        mov PARKING_SLOT[di], al
+        inc si
+        inc di
+        dec bx
+        jnz DEL_COPY_LOC
+
+    
+    mov al, DEL_CUR_SLOT
+    mov ah, 00h
+    mov si, 20
+    mul si
+    mov di, ax
+
+    mov al, DEL_CUR_SLOT
+    inc al
+    mov ah, 00h
+    mov si, 20
+    mul si
+    mov si, ax
+
+    mov bx, 20
+    DEL_COPY_STAT:
+        mov al, VEHICLE_STATUS[si]
+        mov VEHICLE_STATUS[di], al
+        inc si
+        inc di
+        dec bx
+        jnz DEL_COPY_STAT
+
+    
+    inc DEL_CUR_SLOT             
+    dec DEL_SHIFT_COUNT          
+    jnz DEL_SHIFT_LOOP           
+
+DELETE_SKIP_SHIFT:
+    dec GLOBAL_INDEX
+
+    
+    mov al, GLOBAL_INDEX
+    cmp al, 0
+    je DELETE_RENUMBER_DONE
+
+    mov DEL_CUR_SLOT, 0          
+    DEL_RENUMBER_LOOP:
+        mov al, DEL_CUR_SLOT
+        mov ah, 00h
+        mov si, ax
+        add al, 48               
+        mov VEHICLE_ID[si], al
+        inc DEL_CUR_SLOT
+        mov al, DEL_CUR_SLOT
+        cmp al, GLOBAL_INDEX
+        jl DEL_RENUMBER_LOOP
+DELETE_RENUMBER_DONE:
+
+    PRINT_MSG delete_ok_msg
+    PRINT_MSG divider
+    PRINT_MSG retuen_main_menu
+    RET
+DELETE_VEHICLE ENDP
+
+; ============================================================
+; FEATURE 6: PARKING CAPACITY CHECK
+; MAIN PROCEDURE
+; Compares current vehicles with maximum capacity.
+; ============================================================
+STORAGE_CAPACITY_CHECK PROC
+    PRINT_MSG cap_header_msg
+
+    mov ah, 9
+    lea dx, cap_current_msg
+    int 21h
+
+    mov al, GLOBAL_INDEX
+    cmp al, 10
+    je PRINT_TEN
+
+    add al, 30h
+    mov dl, al
+    mov ah, 2
+    int 21h
+    jmp CAPACITY_NUMBER_DONE
+
+PRINT_TEN:
+    PRINT_MSG cap_ten_msg
+
+    CAPACITY_NUMBER_DONE:
+
+    mov ah, 2
+    mov dx, 10
+    int 21h
+    mov dx, 13
+    int 21h
+
+    PRINT_MSG cap_max_msg
+
+    mov al, GLOBAL_INDEX
+    cmp al, MAX_CAPACITY
+    jl  CAP_SPACE_OK
+    PRINT_MSG cap_full_msg
+    jmp CAP_CHECK_DONE
+
+CAP_SPACE_OK:
+    PRINT_MSG cap_ok_msg
+
+CAP_CHECK_DONE:
+    PRINT_MSG divider
+    RET
+STORAGE_CAPACITY_CHECK ENDP
+
+END MAIN
